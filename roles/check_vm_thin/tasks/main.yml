@@ -18,15 +18,14 @@
   register: vms_thin_name
   failed_when: false
 
-- debug:
-    msg: "Host {{item}} is Clone/Dependent"
+- set_fact:
+    vms_affected: "{{ vms_thin_name.matches | map(attribute='name') | list | join(', ') }}"
   when: "(vms_thin_name.matches | default([]) | length) > 0"
-  loop: "{{ vms_thin_name.matches | map(attribute='name') | list}}"
 
 - name: FIX
   block:
     - pause:
-        prompt: "Do you want FIX it (yes/no)?"
+        prompt: "Do you want FIX vms \"{{vms_affected}}\" (yes/no)?"
       register: my_pause
       delegate_to: localhost
     - include_tasks: clone_vm.yml
