@@ -1,0 +1,34 @@
+- name: Get vms list
+  local_action: uri
+  args:
+    url: "https://{{ovirt_auth.hostname}}/ovirt-engine/api/vms"
+    user: "{{ ovirt_auth.username }}"
+    password: "{{ ovirt_auth.password }}"
+    force_basic_auth: true
+    validate_certs: false
+    return_content: true
+  register: vms
+
+- name: Get vms thin name 
+  local_action: xml
+  args:
+    xmlstring: "{{ vms.content }}"
+    xpath: "/vms/vm/template[@id != '00000000-0000-0000-0000-000000000000']/parent::vm/name"
+    content: text
+  register: vms_thin_name
+  failed_when: false
+
+- debug:
+    msg: "Host {{item}} is Clone/Dependent"
+  when: "(vms_thin_name.matches | default([]) | length) > 0"
+  loop: "{{ vms_thin_name.matches | map(attribute='name') | list}}"
+
+- name: FIX
+  block:
+    - pause:
+        prompt: "Do you want FIX it (yes/no)?"
+      register: my_pause
+      delegate_to: localhost
+    - include_tasks: clone_vm.yml
+      when: hostvars['localhost'].my_pause.user_input | bool
+  when: "(vms_thin_name.matches | default([]) | length) > 0"

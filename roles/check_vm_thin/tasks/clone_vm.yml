@@ -1,0 +1,71 @@
+- name: STOP VM
+  delegate_to: "{{ groups.rhvm | first }}"
+  ovirt_vm:
+    auth: "{{ ovirt_auth }}"
+    name: "{{item}}" 
+    state: stopped
+    wait: true
+    timeout: 1200
+    comment: "Ansible Fix Thin/Dependent"    
+  failed_when: false
+  loop: "{{ vms_thin_name.matches | map(attribute='name') | list}}"
+
+- name: Get VM info
+  delegate_to: "{{ groups.rhvm | first }}"
+  ovirt_vm_info:
+    auth: "{{ ovirt_auth }}"
+    pattern: name="{{item}}"
+  loop: "{{ vms_thin_name.matches | map(attribute='name') | list}}"
+  register: vms_thin_info
+
+- name: Populate list
+  set_fact:
+    vm_info_list: "{{ vm_info_list|default({}) | combine( {item.ovirt_vms[0].name: item.ovirt_vms[0].id} ) }}"
+  with_items: "{{ vms_thin_info.results }}"
+
+- name: rename vms
+  delegate_to: "{{ groups.rhvm | first }}"
+  ovirt_vm:
+    auth: "{{ ovirt_auth }}"
+    timeout: 1200
+    id: "{{ vm_info_list[item] }}"
+    name: "{{ item}}_clone"
+    state: present
+  loop: "{{ vms_thin_name.matches | map(attribute='name') | list}}"
+
+- name: Create VM snapshot
+  delegate_to: "{{ groups.rhvm | first }}"
+  ovirt_snapshot:
+    auth: "{{ ovirt_auth }}"
+    vm_name: "{{item}}_clone"
+    description: "ansible_fix_thin_snap"
+    wait: true
+    timeout: 1200
+  failed_when: false
+  loop: "{{ vms_thin_name.matches | map(attribute='name') | list}}"
+  register: snapshot_ansible
+
+- name: Clone VM from snapshot
+  delegate_to: "{{ groups.rhvm | first }}"
+  ovirt_vm:
+    auth: "{{ ovirt_auth }}"
+    clone: yes
+    timeout: 1200
+    snapshot_name: ansible_fix_thin_snap
+    snapshot_vm: "{{item}}_clone"
+    name: "{{item}}"
+    state: present
+  failed_when: false
+  loop: "{{ vms_thin_name.matches | map(attribute='name') | list}}"
+
+- name: START VM
+  delegate_to: "{{ groups.rhvm | first }}"
+  ovirt_vm:
+    auth: "{{ ovirt_auth }}"
+    name: "{{item}}" 
+    state: running
+    wait: true
+    description: "Ansible FIX"
+    timeout: 1200
+  failed_when: false
+  loop: "{{ vms_thin_name.matches | map(attribute='name') | list}}"

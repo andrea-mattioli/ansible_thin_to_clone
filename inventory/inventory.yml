@@ -1,0 +1,14 @@
+all:
+  vars:
+    ansible_user: root
+    ansible_password: password
+    ovirt_auth:
+      username: "admin@internal"
+      password: "password"
+      hostname: "{{ groups.rhvm | first }}"
+      insecure: true
+  children:
+    rhvm:
+      vars:
+      hosts:
+        rhvm-fqdn.local.domain:
