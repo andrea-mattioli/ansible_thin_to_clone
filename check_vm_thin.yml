@@ -1,12 +1,6 @@
 - name: Check VM Thin
   hosts: localhost
   gather_facts: False
-  #  vars:
-  #    ovirt_auth:
-  #      username: "admin@internal"
-  #      password: "Redhat.01"
-  #      hostname: "rhv-m.armasecurity.local"
-  #      insecure: true
   tasks:
   - include_role:
       name: check_vm_thin
